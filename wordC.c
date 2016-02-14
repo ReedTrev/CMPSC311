@@ -55,13 +55,14 @@ void listInsert(char str[], struct word_t **head){
 
 	printf("The word to be inserted is: %s\n", str);
 	if(*head==NULL){
+		//new->next = *head;
 		*head = new;
 		printf("Head is NULL\tHead word: %s\n", new->word);		
 	}
 	else{
 		printf("Head is NOT NULL\tNew word: %s\n", new->word);
 		//iter = *head;
-		printf("\tHead word: %s", iter->word);
+		printf("\tHead word: %s\n", iter->word);
 		while(iter != NULL){
 			printf("\t\tEntered Insert while loop\n");
 			//If we're at head, and new word should come before:
@@ -128,7 +129,7 @@ int main(int argc, char** argv){
 		.count = 0,
 		.next = NULL
 	};*/
-
+	
 	curr = NULL;
 	head = NULL;
 	while(!feof(INFILE)){

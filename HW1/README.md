@@ -4,14 +4,26 @@ ii)	We found that in this case, shell was a lot easier to implement and more eff
 
 iii)	As for the shell script, the biggest problem we had was finding and using the correct syntax. The preciseness of the spacing made it difficult at times to find the source of our errors. Also, we ran into issues with the shell script on a MacBook. The timestamp didn’t seem to work properly until we switched machines.
 
-iv)	Shell scripting
-Pangur Ban: 
-Mean- 67954036.65 Ns	
-SD- 1966643.61298 Ns
-Hamlet: 
-Mean-	434028728.65 Ns
-SD- 13806452.71567 Ns
-Arabian Nights:
+iv)	Timing
+
+Shell:
+ Pangur Ban:
+
+ Mean- 67954036.65 Ns
+
+ Standard Deviation- 1966643.61298 Ns
+
+
+ Hamlet:
+
+ Mean-	434028728.65 Ns
+ 
+ SD- 13806452.71567 Ns
+ 
+ 
+ Arabian Nights:
+ 
  Mean-	3362910543.35 Ns
-SD- 12922549.31046 Ns
+ 
+ SD- 12922549.31046 Ns
 

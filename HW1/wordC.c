@@ -56,51 +56,43 @@ void listInsert(char str[]){
 
 	int same = 0;
 
-	printf("The word to be inserted is: %s\n", str);
+	//If head is empty, we need a new head:
 	if(iter==NULL){
 		//new->next = *head;
 		head = new;
 		printf("Head is NULL\tHead word: %s\n", new->word);		
 	}
-	else{
-		printf("Head is NOT NULL\tNew word: %s\n", new->word);
-		//iter = *head;
-		printf("\tCurrent word: %s\n", iter->word);
-
+	//If we already have a head...
+	else{	
 		//Check to see if word already exists
 		while(iter != NULL){
 			//If it's the same word:
 			if((strcmp(str, iter->word) == 0)){
-				printf("\tSame word: str1(%s)==str2(%s)\n", str, iter->word);
 				iter->count = iter->count + 1; //Increment count
-				printf("%s count = %d\n", str, iter->count);
 				same = 1; //Set flag
 				break;
 			}
 			iter = iter->next; //Move to next word
 		}
 
-		iter = head;
+		iter = head;//Reset iter back to head
+
 		//While we're in the list and there isn't a repeat word...
 		while(iter != NULL && same == 0){
-			printf("\t\tEntered Insert while loop\n");
 						
 			//If we're at head, and new word should come before:
 			if((iter==head) && (strcmp(str, iter->word)<0)){
-				printf("\tNew word is new head\n");
 				new->next = head;
 				head = new;	
 				break;
 			}
 			//Word at the end:
 			else if(iter->next == NULL){
-				printf("\tNew word at end of list\n");
 				iter->next = new;
 				break;
 			}
 			//If new word should go between current and next word:
 			else if((strcmp(str, iter->word)>0) && (strcmp(str, iter->next->word)<0)){
-				printf("\tNew word is after current\n");
 				new->next = iter->next;
 				iter->next = new;
 				break;
@@ -109,7 +101,7 @@ void listInsert(char str[]){
 				iter = iter->next;
 		}
 	}
-	
+	printf("Finished inserting %s.\n",str);
 };
 
 //Writes contents of list to specified file (arg[2])
@@ -117,8 +109,8 @@ void writeOut(FILE *OUT){
 	struct	word_t *iter = head;
 
 	while(iter != NULL){
-		if(iter->word != ""){
-			printf("\n%s\n",iter->word);
+		if(iter->word != NULL){
+			//printf("\n%s\n",iter->word);
 			fprintf(OUT,"%s, %d\n", iter->word, iter->count);
 		}
 		iter = iter->next;
@@ -126,38 +118,50 @@ void writeOut(FILE *OUT){
 	printf("Finished writeOut\n");
 };
 
-int main(int argc, char** argv){
-	
-	struct timeval t0, t1;
-	time_t begtime, endtime;
-	gettimeofday(&t0, NULL);
-	begtime = t0.tv_sec;
+void writeTime(FILE *OUT, struct timeval t0, struct timeval t1){
+	time_t begtime = t0.tv_sec;
+	//time_t endtime = t1.tv_sec;
+	long elapsed = (t1.tv_sec - t0.tv_sec)*1000000+t1.tv_usec-t0.tv_usec;	
+	fprintf(OUT,"Start time: %d sec\n\tRun time: %d usec\n",begtime,elapsed);
+	printf("Finished writeTime\n");
+}
 
+int main(int argc, char** argv){
+		
+	struct timeval t0, t1; //Create structs for begin and end times.
+	time_t begtime, endtime; //Variables to hold the two times.
+	gettimeofday(&t0, NULL); //Get the time at the start of the program.
+	//begtime = t0.tv_sec; //Set begtime equal to the start time.
+
+	//Get input file as first run argument.
 	FILE* INFILE = argv[1];
 	INFILE = fopen(INFILE,"r");
 
+	//Get count output file as second run argument.
 	FILE* OUTFILE = argv[2];
 	OUTFILE = fopen(OUTFILE,"w");
 
+	//Get runtime output file as third run argument.
 	FILE* TIMEFILE = argv[3];
 	TIMEFILE = fopen(TIMEFILE,"w");
 
-	int count = 1;
-	int cnt = 0;	
 	char *str;
 
 	while(!feof(INFILE)){
 		printf("Entered main loop\n");
 		str = (char*)malloc(100); //Initialize space for str
-		count = fscanf(INFILE, "%s", str);//Set str as next word
+		fscanf(INFILE, "%s", str);//Set str as next word
 		cleanWord(str);//clean the word up
 		listInsert(str);//Insert the word into the linked list
 	}
 	
-	writeOut(OUTFILE);
+	writeOut(OUTFILE); //Write word count to OUTFILE.
 	printf("Start time: %d\n", begtime);
+	
+	fclose(INFILE);fclose(OUTFILE);fclose(TIMEFILE); //Close all files.
+
 	gettimeofday(&t1, NULL);
-	long elapsed = (t1.tv_sec - t0.tv_sec)*1000000+t1.tv_usec-t0.tv_usec;
-	printf("Total time: %d usec.\n", elapsed);
+	writeTime(TIMEFILE,t0,t1);
+
 	return 0;	
 };

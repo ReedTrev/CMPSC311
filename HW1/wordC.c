@@ -60,7 +60,7 @@ void listInsert(char str[]){
 	if(iter==NULL){
 		//new->next = *head;
 		head = new;
-		printf("Head is NULL\tHead word: %s\n", new->word);		
+		//printf("Head is NULL\tHead word: %s\n", new->word);		
 	}
 	//If we already have a head...
 	else{	
@@ -101,7 +101,7 @@ void listInsert(char str[]){
 				iter = iter->next;
 		}
 	}
-	printf("Finished inserting %s.\n",str);
+	//printf("Finished inserting %s.\n",str);
 };
 
 //Writes contents of list to specified file (arg[2])
@@ -115,16 +115,16 @@ void writeOut(FILE *OUT){
 		}
 		iter = iter->next;
 	}
-	printf("Finished writeOut\n");
+	//printf("Finished writeOut\n");
 };
 
-void writeTime(FILE *OUT, struct timeval t0, struct timeval t1){
+void writeTime(FILE *OUTTIME, struct timeval t0, struct timeval t1){
 	time_t begtime = t0.tv_sec;
 	//time_t endtime = t1.tv_sec;
 	long elapsed = (t1.tv_sec - t0.tv_sec)*1000000+t1.tv_usec-t0.tv_usec;	
-	fprintf(OUT,"Start time: %d sec\n\tRun time: %d usec\n",begtime,elapsed);
-	printf("Finished writeTime\n");
-}
+	fprintf(OUTTIME,"Start time: %d sec\n\tRun time: %d usec\n",begtime,elapsed);
+	//printf("Finished writeTime\n");
+};
 
 int main(int argc, char** argv){
 		
@@ -135,20 +135,20 @@ int main(int argc, char** argv){
 
 	//Get input file as first run argument.
 	FILE* INFILE = argv[1];
-	INFILE = fopen(INFILE,"r");
+	INFILE = fopen(INFILE,"r");//"r" open file for reading only.
 
 	//Get count output file as second run argument.
 	FILE* OUTFILE = argv[2];
-	OUTFILE = fopen(OUTFILE,"w");
+	OUTFILE = fopen(OUTFILE,"w");//"w" create file if it doesn't exist, write over existing.
 
 	//Get runtime output file as third run argument.
 	FILE* TIMEFILE = argv[3];
-	TIMEFILE = fopen(TIMEFILE,"w");
+	TIMEFILE = fopen(TIMEFILE,"a");//"a" open if it exists and append to end.
 
 	char *str;
 
 	while(!feof(INFILE)){
-		printf("Entered main loop\n");
+		//printf("Entered main loop\n");
 		str = (char*)malloc(100); //Initialize space for str
 		fscanf(INFILE, "%s", str);//Set str as next word
 		cleanWord(str);//clean the word up
@@ -156,12 +156,11 @@ int main(int argc, char** argv){
 	}
 	
 	writeOut(OUTFILE); //Write word count to OUTFILE.
-	printf("Start time: %d\n", begtime);
+	//printf("Start time: %d\n", begtime);
 	
-	fclose(INFILE);fclose(OUTFILE);fclose(TIMEFILE); //Close all files.
-
 	gettimeofday(&t1, NULL);
-	writeTime(TIMEFILE,t0,t1);
+	writeTime(TIMEFILE,t0,t1); //Write 
 
+	fclose(INFILE);fclose(OUTFILE);fclose(TIMEFILE); //Close all files.
 	return 0;	
 };

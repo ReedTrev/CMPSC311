@@ -1,9 +1,12 @@
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <ctype.h>
 #include <sys/time.h>
+#include <errno.h>
+
+//Programmers:
+//Trevor Reed
+//Alison Pastore
 
 struct word_t{
 	char *word;
@@ -67,7 +70,6 @@ void listInsert(char str[]){
 			//If it's the same word:
 			if((strcmp(str, iter->word) == 0)){
 				iter->count = iter->count + 1; //Increment count
-				same = 1; //Set flag
 				break;
 			}			
 			//If we're at head, and new word should come before:
@@ -105,6 +107,7 @@ void writeOut(FILE *OUT){
 	}
 };
 
+//Write to the specified time file, argv[3].
 void writeTime(FILE *OUTTIME, struct timeval t0, struct timeval t1){
 	time_t begtime = t0.tv_sec;
 	long elapsed = (t1.tv_sec - t0.tv_sec)*1000000+t1.tv_usec-t0.tv_usec;	
@@ -128,6 +131,10 @@ int main(int argc, char** argv){
 	//Get runtime output file as third run argument.
 	FILE* TIMEFILE;// = argv[3];
 	TIMEFILE = fopen(argv[3],"a");//"a" open if it exists and append to end.
+
+	if(argv[1] == NULL || argv[2] == NULL || argv[3] == NULL){
+		printf("Oh dear, we seem to be missing a file! Make sure to input three files in the format, ./wordC input.txt wordCount.txt runtime.txt . %s\n", strerror(errno));
+	}
 
 	char *str;
 

@@ -18,23 +18,23 @@ Shell:
 
  Pangur Ban:
 
- Mean- 67954036.65 Ns
+ Mean- 67954036.65 nsec
 
- Standard Deviation- 1966643.61298 Ns
+ Standard Deviation- 1966643.61298 nsec
 
 
  Hamlet:
 
- Mean-	434028728.65 Ns
+ Mean-	434028728.65 nsec
  
- SD- 13806452.71567 Ns
+ SD- 13806452.71567 nsec
  
  
  Arabian Nights:
  
- Mean-	3362910543.35 Ns
+ Mean-	3362910543.35 nsec
  
- SD- 12922549.31046 Ns
+ SD- 12922549.31046 nsec
 
 
 C:

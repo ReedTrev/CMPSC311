@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <unistd.h>
 
 //Programmers:
 //Trevor Reed
@@ -132,19 +133,76 @@ int main(int argc, char** argv){
 	FILE* TIMEFILE;// = argv[3];
 	TIMEFILE = fopen(argv[3],"a");//"a" open if it exists and append to end.
 
-	if(argv[1] == NULL || argv[2] == NULL || argv[3] == NULL){
-		printf("Oh dear, we seem to be missing a file! Make sure to input three files in the format, ./wordC input.txt wordCount.txt runtime.txt . %s\n", strerror(errno));
+	//Find out size of input file in bytes.
+	fseek(INFILE, 0L, SEEK_END);//Send INFILE pointer to end of file...
+	int fsize = ftell(INFILE);//... and set fsize to size of INFILE.
+	fseek(INFILE, 0L, SEEK_SET);//Reset pointer to start of INFILE.
+
+	int byteID = 0;		//ID number indicating what byte section of file process will traverse.
+
+	if(argv[1] == NULL || argv[2] == NULL || argv[3] == NULL || argv[4] == NULL){
+		printf("Oh dear, we seem to be missing a file or input! Make sure to input three files and process parameter in the format, ./wordC input.txt wordCount.txt runtime.txt #ofProcesses. %s\n", strerror(errno));
 	}
 
 	char *str;
 
-	while(!feof(INFILE)){
+//START OF PARENT/CHILD FORKING CHANGES
+
+	pid_t child_pid = 1;
+	printf("Number of process (incl. parent) = %d\n",n);
+	int byteCnt;
+	int offset; //Offset for fseek used by children.
+
+	for(i = 1; i<n && child_pid != 0; i++){
+
+		child_pid = fork();
+		byteID++;//Indicates what "position" process has in the input file.
+
+		if(child_pid > 0){
+			//This is the parent
+			printf("I'm the parent process: pid = %d, %d children created\n", getpid(),byteID);
+			
+			//While the # of bytes traversed < # of bytes to be traversed OR only 1 process and EOF:
+			while(byteCnt < (fsize/n) || !feof(INFILE)){
+				//printf("Entered main loop\n");
+				str = (char*)malloc(100); //Initialize space for str
+				byteCnt = byteCnt + strlen(str) + 1; //Compute bytes in word + space
+				fscanf(INFILE, "%s", str);//Set str as next word
+				cleanWord(str);//clean the word up
+				listInsert(str);//Insert the word into the linked list
+
+			}
+			//Code for waiting for children to finish here \/
+			
+		}
+		else if(child_pid == 0){
+			//This is a child
+			printf("I'm a child process: pid = %d, byte ID = %d\n", getpid(),byteID);
+			offset = byteID*(fsize/n); //Set fseek offset.
+			fseek(INFILE, offset, SET_SEEK); //Point file pointer to offset location to begin searching
+
+			//While the # of bytes traversed < # of bytes to be traversed OR child process and EOF:			
+			while(byteCnt < (fsize/n) || !feof(INFILE)){
+				//printf("Entered main loop\n");
+				str = (char*)malloc(100); //Initialize space for str
+				byteCnt = byteCnt + strlen(str) + 1; //Compute bytes in word + space
+				fscanf(INFILE, "%s", str);//Set str as next word
+				cleanWord(str);//clean the word up
+				listInsert(str);//Insert the word into the linked list
+			}
+		}
+	}
+		
+
+//END OF PARENT/CHILD FORKING CHANGES
+
+	/*while(!feof(INFILE)){
 		//printf("Entered main loop\n");
 		str = (char*)malloc(100); //Initialize space for str
 		fscanf(INFILE, "%s", str);//Set str as next word
 		cleanWord(str);//clean the word up
 		listInsert(str);//Insert the word into the linked list
-	}
+	}*/
 	
 	writeOut(OUTFILE); //Write word count to OUTFILE.
 

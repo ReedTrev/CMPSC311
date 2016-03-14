@@ -137,8 +137,10 @@ int main(int argc, char** argv){
 	fseek(INFILE, 0L, SEEK_END);//Send INFILE pointer to end of file...
 	int fsize = ftell(INFILE);//... and set fsize to size of INFILE.
 	fseek(INFILE, 0L, SEEK_SET);//Reset pointer to start of INFILE.
-
+	
+	int n = atoi(argv[4]);	//Get # of processes
 	int byteID = 0;		//ID number indicating what byte section of file process will traverse.
+	int fds[2];		//Pipe file descriptor
 
 	if(argv[1] == NULL || argv[2] == NULL || argv[3] == NULL || argv[4] == NULL){
 		printf("Oh dear, we seem to be missing a file or input! Make sure to input three files and process parameter in the format, ./wordC input.txt wordCount.txt runtime.txt #ofProcesses. %s\n", strerror(errno));
@@ -146,22 +148,31 @@ int main(int argc, char** argv){
 
 	char *str;
 
-//START OF PARENT/CHILD FORKING CHANGES
+//START OF PARENT/CHILD FORKING AND PIPING CHANGES
 
 	pid_t child_pid = 1;
-	printf("Number of process (incl. parent) = %d\n",n);
+	
+	printf("Number of processes (incl. parent) = %d\n",n);
 	int byteCnt;
 	int offset; //Offset for fseek used by children.
+	
+	//Create the pipe:
+	if (pipe(fds)){
+      		fprintf (stderr, "Pipe failed.\n");
+	      	return EXIT_FAILURE;
+    	}
 
-	for(i = 1; i<n && child_pid != 0; i++){
+	for(i = 1; i<n && child_pid != 0; i++){	//While there are processes left to make and we are the parent...
 
-		child_pid = fork();
-		byteID++;//Indicates what "position" process has in the input file.
+		child_pid = fork();		//Create a child via fork
+		byteID++;			//Indicates what "position" process has in the input file. Parent is always 0.
 
 		if(child_pid > 0){
 			//This is the parent
-			printf("I'm the parent process: pid = %d, %d children created\n", getpid(),byteID);
+			printf("I'm the parent process: pid = %d, %d children created\n", getpid(), byteID);
 			
+			close(fds[0]);	//Close the write end of the pipe
+
 			//While the # of bytes traversed < # of bytes to be traversed OR only 1 process and EOF:
 			while(byteCnt < (fsize/n) || !feof(INFILE)){
 				//printf("Entered main loop\n");
@@ -177,7 +188,10 @@ int main(int argc, char** argv){
 		}
 		else if(child_pid == 0){
 			//This is a child
-			printf("I'm a child process: pid = %d, byte ID = %d\n", getpid(),byteID);
+			printf("I'm a child process: pid = %d, byte ID = %d\n", getpid(), byteID);
+
+			close(fds[1]);	//Close the read end of the pipe
+
 			offset = byteID*(fsize/n); //Set fseek offset.
 			fseek(INFILE, offset, SET_SEEK); //Point file pointer to offset location to begin searching
 
@@ -194,7 +208,7 @@ int main(int argc, char** argv){
 	}
 		
 
-//END OF PARENT/CHILD FORKING CHANGES
+//END OF PARENT/CHILD FORKING AND PIPING CHANGES
 
 	/*while(!feof(INFILE)){
 		//printf("Entered main loop\n");

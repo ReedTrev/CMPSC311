@@ -115,6 +115,26 @@ void writeTime(FILE *OUTTIME, struct timeval t0, struct timeval t1){
 	fprintf(OUTTIME,"Start time: %d sec\n\tRun time: %d usec\n",begtime,elapsed);
 };
 
+//CITE LATER FROM GNU C LIBRARY*****************************************
+void write_to_pipe (int file, char *str){
+	FILE *stream;
+	stream = fdopen (file, "w")'
+	fprintf(stream, str);
+	fclose(stream);
+};
+
+//CITE LATER FROM GNU C LIBRARY *******************************************
+void read_from_pipe (int file){
+  	FILE *stream;
+ 	int c;
+ 	stream = fdopen (file, "r");
+ 	while ((c = fgetc (stream)) != EOF)
+ 		putchar (c);
+  	fclose (stream);
+};
+
+
+
 int main(int argc, char** argv){
 		
 	struct timeval t0, t1; //Create structs for begin and end times.
@@ -140,7 +160,7 @@ int main(int argc, char** argv){
 	
 	int n = atoi(argv[4]);	//Get # of processes
 	int byteID = 0;		//ID number indicating what byte section of file process will traverse.
-	int fds[2];		//Pipe file descriptor
+	int fds[n-1][2];		//Pipe file descriptor
 
 	if(argv[1] == NULL || argv[2] == NULL || argv[3] == NULL || argv[4] == NULL){
 		printf("Oh dear, we seem to be missing a file or input! Make sure to input three files and process parameter in the format, ./wordC input.txt wordCount.txt runtime.txt #ofProcesses. %s\n", strerror(errno));
@@ -153,19 +173,20 @@ int main(int argc, char** argv){
 	pid_t child_pid = 1;
 	
 	printf("Number of processes (incl. parent) = %d\n",n);
-	int byteCnt;
+	int byteCnt = 0;
 	int offset; //Offset for fseek used by children.
 	
-	//Create the pipe:
-	if (pipe(fds)){
-      		fprintf (stderr, "Pipe failed.\n");
-	      	return EXIT_FAILURE;
-    	}
+
 
 	for(i = 1; i<n && child_pid != 0; i++){	//While there are processes left to make and we are the parent...
 
 		child_pid = fork();		//Create a child via fork
 		byteID++;			//Indicates what "position" process has in the input file. Parent is always 0.
+		//Create the pipe:
+		if (pipe(fds[byteID-1])){
+      			fprintf (stderr, "Pipe failed.\n");
+		      	return EXIT_FAILURE;
+    		}
 
 		if(child_pid > 0){
 			//This is the parent
@@ -181,10 +202,17 @@ int main(int argc, char** argv){
 				fscanf(INFILE, "%s", str);//Set str as next word
 				cleanWord(str);//clean the word up
 				listInsert(str);//Insert the word into the linked list
-
 			}
+
 			//Code for waiting for children to finish here \/
 			
+
+			while(){
+				read_from_pipe(fds[][0]);
+
+			}			
+
+
 		}
 		else if(child_pid == 0){
 			//This is a child
@@ -204,6 +232,12 @@ int main(int argc, char** argv){
 				cleanWord(str);//clean the word up
 				listInsert(str);//Insert the word into the linked list
 			}
+
+			while(){
+				write_to_pipe(fds[][1], str);
+
+			}
+
 		}
 	}
 		

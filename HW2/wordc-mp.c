@@ -110,6 +110,7 @@ void listMerge(char str[], int cnt){
 	if(iter==NULL){
 		//new->next = *head;
 		head = new;
+		head->next = NULL;
 	}
 	//If we already have a head...
 	else{
@@ -274,11 +275,8 @@ int main(int argc, char** argv){
 	int byteCnt = 0;
 	int offset; //Offset for fseek used by children.
 	
-
-	
 	int i;
 	for(i = 1; (i<n && child_pid != 0); i++){	//While there are processes left to make and we are the parent...
-		printf("247\n");
 
 		if(n != 1){
 			child_pid = fork();		//Create a child via fork
@@ -294,7 +292,6 @@ int main(int argc, char** argv){
 		if(child_pid == 0){
 			//This is a child
 			printf("I'm a child process: pid = %d, byte ID = %d\n", getpid(), byteID);
-			//fopen(INFILE, "r");
 			
 			INFILE = fopen(argv[1],"r");
 			offset = byteID*(fsize/n); //Set fseek offset.
@@ -304,7 +301,6 @@ int main(int argc, char** argv){
 
 			printf("Child, 308, fsize = %d\n", fsize);
 			while(byteCnt < (fsize/n) && !feof(INFILE)){
-				//printf("Entered main loop\n");
 				str = (char*)malloc(100); //Initialize space for str	
 				printf("Child, 311, ByteCnt = %d\n", byteCnt);
 				fscanf(INFILE, "%s", str);//Set str as next word
@@ -313,13 +309,12 @@ int main(int argc, char** argv){
 				if(str[0] != '\0')
 					listInsert(str);//Insert the word into the linked list			
 			}
-			printf("Child, 309\n");
+		
 			//Begin Child piping
-			int j = 0;					
-			j = byteID-1;
-			close(fds[j][0]);
-			write_to_pipe(fds[j][1]);
-			close(fds[j][1]);
+		
+			close(fds[byteID-1][0]);
+			write_to_pipe(fds[byteID-1][1]);
+			close(fds[byteID-1][1]);
 			fclose(INFILE);	
 		}
 		else{
@@ -329,7 +324,6 @@ int main(int argc, char** argv){
 			INFILE = fopen(argv[1],"r");			
 			//While the # of bytes traversed < # of bytes to be traversed OR only 1 process and EOF:
 			while(byteCnt < (fsize/n) && !feof(INFILE)){
-				//printf("Entered main loop\n");
 				str = (char*)malloc(100); 		//Initialize space for str			
 				fscanf(INFILE, "%s", str);		//Set str as next word
 				byteCnt = byteCnt + strlen(str) + 1; 	//Compute bytes in word + space
@@ -337,17 +331,7 @@ int main(int argc, char** argv){
 				if(str[0] != '\0')
 					listInsert(str);//Insert the word into the linked list	
 			}
-
-			printf("Parent, 271\n");
-		
-			/*wait_pid = waitpid(child_pid, NULL, WNOHANG);
 			
-			if(wait_pid == -1){
-				perror("waitpid");
-				exit(-1);
-			}*/
-			
-
 
 			
 			int k, l=0;
@@ -357,23 +341,12 @@ int main(int argc, char** argv){
 				k = read_from_pipe(fds[l][0]);
 				close(fds[l][0]);
 			}
-		
+			writeOut(OUTFILE); //Write word count to OUTFILE.
 			fclose(INFILE);
-			writeOut(OUTFILE); //Write word count to OUTFILE.			
+						
 						
 		}
 	
-		
-
-//END OF PARENT/CHILD FORKING AND PIPING CHANGES
-
-	/*while(!feof(INFILE)){
-		//printf("Entered main loop\n");
-		str = (char*)malloc(100); //Initialize space for str
-		fscanf(INFILE, "%s", str);//Set str as next word
-		cleanWord(str);//clean the word up
-		listInsert(str);//Insert the word into the linked list
-	}*/
 	printf("337, %d\n", getpid());
 	
 

@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 //Programmers:
 //Trevor Reed
@@ -164,39 +165,71 @@ void writeTime(FILE *OUTTIME, struct timeval t0, struct timeval t1){
 };
 
 //CITE LATER FROM GNU C LIBRARY
-void write_to_pipe (int file, struct word_t *iter){
-	printf("Entered Write to pipe, 168\n");
-	FILE *stream;
+void write_to_pipe (int file/*, struct word_t *iter*/){
+//	printf("Entered Write to pipe, 168\n");
+	FILE *stream;		
 	stream = fdopen(file, "w");
+	struct word_t *iter = head;
 	while(iter != NULL){
-		fprintf(stream, "%s %d\0", iter->word, iter->count);
+		fprintf(stream, "%s %d\n", iter->word, iter->count);
 		iter = iter->next;
 	}
-	fclose(stream);
+	//fprintf(stream, "@");
+	fclose(stream);	
+	
 };
 
 //CITE LATER FROM GNU C LIBRARY
-int read_from_pipe (int file){
-	printf("Entered read from pipe, 180\n");  	
+/*int read_from_pipe (int file){
+//	printf("Entered read from pipe, 180\n");  	
 	FILE *stream;
  	char str[50];
-	char *entry;
-	char *test;
+	//char *entry;
+	int test = 5;
 	int count;
 	printf("186, %d\n", getpid());
 
  	stream = fdopen(file, "r");
 
+	if(stream == NULL)
+		printf("Stream did not open\n");
+	
 	printf("188, %d\n", getpid());
 	
- 	while(fgets(str, 50, stream) != NULL){
-		printf("191, %d\n", getpid());		
-		entry = strtok(str, " ");			//Tokenize string into word and count, and get word (first token).
-		count = atoi(strtok(NULL, " "));	//Turn char* count to int (second token).
+ 	while(!feof(stream)) && (entry != "@") && (test != EOF)){		
+		char *entry = malloc(50*sizeof(char)); 		//Initialize space for str
+		test = fscanf(stream, "%s", entry);			//Tokenize string into word and count, and get word (first token).
+		test = fscanf(stream, "%d", &count);	//Turn char* count to int (second token).
+		if(test == EOF)
+			break;
 		listMerge(entry, count);			//Add the word and its count to the parent's linked list.
 		printf("195, %d\n", getpid());
- 	}	
+ 	}
+	
+	while(read(file, str, 50) != 0){
+		entry = strtok(str, " ");
+		count = atoi(strtok(NULL, " "));
+		listMerge(entry, count);
+	}	
+		
   	return fclose(stream);
+};*/
+
+int read_from_pipe(int file){
+	FILE *stream;
+	char *str;
+	char test;
+	int count;
+
+	stream = fdopen(file, "r");
+
+	while(!feof(stream)){
+		str = malloc(50*sizeof(char));
+		test = fscanf(stream, "%s", str);
+		test = fscanf(stream, "%d", &count);
+		listMerge(str,count);
+	}
+	fclose(stream);
 };
 
 int main(int argc, char** argv){
@@ -218,13 +251,14 @@ int main(int argc, char** argv){
 	TIMEFILE = fopen(argv[3],"a");//"a" open if it exists and append to end.
 
 	//Find out size of input file in bytes.
-	fseek(INFILE, 0L, SEEK_END);//Send INFILE pointer to end of file...
-	int fsize = ftell(INFILE);//... and set fsize to size of INFILE.
-	fseek(INFILE, 0L, SEEK_SET);//Reset pointer to start of INFILE.
+	fseek(INFILE, 0L, SEEK_END);	//Send INFILE pointer to end of file...
+	int fsize = ftell(INFILE);		//... and set fsize to size of INFILE.
+	fseek(INFILE, 0L, SEEK_SET);	//Reset pointer to start of INFILE.
+	//fclose(INFILE);
 	
-	int n = atoi(argv[4]);		//Get # of processes
-	int byteID = 0;			//ID number indicating what byte section of file process will traverse.
-	int fds[n-1][2];		//Pipe file descriptor
+	long int n = atoi(argv[4]);		//Get # of processes
+	int byteID = 0;				//ID number indicating what byte section of file process will traverse.
+	int fds[n-1][2];			//Pipe file descriptor
 
 	if(argv[1] == NULL || argv[2] == NULL || argv[3] == NULL || argv[4] == NULL){
 		printf("Oh dear, we seem to be missing a file or input! Make sure to input three files and process parameter in the format, ./wordC input.txt wordCount.txt runtime.txt #ofProcesses. %s\n", strerror(errno));
@@ -243,7 +277,7 @@ int main(int argc, char** argv){
 
 	
 	int i;
-	for(i = 1; i<=n && child_pid != 0; i++){	//While there are processes left to make and we are the parent...
+	for(i = 1; (i<n && child_pid != 0); i++){	//While there are processes left to make and we are the parent...
 		printf("247\n");
 
 		if(n != 1){
@@ -251,59 +285,18 @@ int main(int argc, char** argv){
 			byteID++;			//Indicates what "position" process has in the input file. Parent is always 0.
 
 			//Create the pipe:
-			if (pipe(fds[byteID-1])){
-      			fprintf (stderr, "Pipe failed.\n");	//If the pipe returns -1, it has failed.
-	      		exit(-1);				//Return error.
+		if (pipe(fds[byteID-1])){
+      		printf ("Pipe failed.\n");	//If the pipe returns -1, it has failed.
+	    	return 1;				//Return error.
     		}
 		}
-
-		if(child_pid > 0){
-			//This is the parent
-			printf("I'm the parent process: pid = %d, %d children created\n", getpid(), byteID);
-			int p;						
-			for(p = 0; p < n; p++)
-				close(fds[p][1]);
-
-			//While the # of bytes traversed < # of bytes to be traversed OR only 1 process and EOF:
-			while(byteCnt < (fsize/n) && !feof(INFILE)){
-				//printf("Entered main loop\n");
-				str = (char*)malloc(100); 		//Initialize space for str				
-				fscanf(INFILE, "%s", str);		//Set str as next word
-				byteCnt = byteCnt + strlen(str) + 1; 	//Compute bytes in word + space
-				cleanWord(str);				//clean the word up
-				listInsert(str);			//Insert the word into the linked list
-				printf("Parent, 271\n");
-			}
-
-			printf("Parent, 271\n");
-		
-			/*wait_pid = waitpid(child_pid, NULL, WNOHANG);
-			
-			if(wait_pid == -1){
-				perror("waitpid");
-				exit(-1);
-			}*/
-			
-			int j = -1;
-			int k, l=0;
-			while(l < n-1){
-				j = (1 + j)%(n-1);
-				k = read_from_pipe(fds[j][0]);
-				close(fds[j][0]);
-				printf("Parent, 287\n");
-				if(k == 0)
-					l++;				//Will increment as many times as we have children.
-			}
-
-		}
-		else if(child_pid == 0){
+	}
+		if(child_pid == 0){
 			//This is a child
 			printf("I'm a child process: pid = %d, byte ID = %d\n", getpid(), byteID);
-			int p;
-			for(p = 0; p < n; p++)		//Close the read end of the pipe
-				close(fds[p][0]);
-				
-
+			//fopen(INFILE, "r");
+			
+			INFILE = fopen(argv[1],"r");
 			offset = byteID*(fsize/n); //Set fseek offset.
 			fseek(INFILE, offset, SEEK_SET); //Point file pointer to offset location to begin searching
 
@@ -317,21 +310,59 @@ int main(int argc, char** argv){
 				fscanf(INFILE, "%s", str);//Set str as next word
 				byteCnt = byteCnt + strlen(str) + 1;	//Compute bytes in word + space
 				cleanWord(str);//clean the word up
-				listInsert(str);//Insert the word into the linked list				
+				if(str[0] != '\0')
+					listInsert(str);//Insert the word into the linked list			
 			}
 			printf("Child, 309\n");
 			//Begin Child piping
-			int j = 0;
-			//char *childStr;
-			struct word_t *iter = head;
-							
+			int j = 0;					
 			j = byteID-1;
-			write_to_pipe(fds[j][1], iter);
+			close(fds[j][0]);
+			write_to_pipe(fds[j][1]);
 			close(fds[j][1]);
-				
-			
+			fclose(INFILE);	
 		}
-	}
+		else{
+			//This is the parent
+			printf("I'm the parent process: pid = %d, %d children created\n", getpid(), byteID);
+
+			INFILE = fopen(argv[1],"r");			
+			//While the # of bytes traversed < # of bytes to be traversed OR only 1 process and EOF:
+			while(byteCnt < (fsize/n) && !feof(INFILE)){
+				//printf("Entered main loop\n");
+				str = (char*)malloc(100); 		//Initialize space for str			
+				fscanf(INFILE, "%s", str);		//Set str as next word
+				byteCnt = byteCnt + strlen(str) + 1; 	//Compute bytes in word + space
+				cleanWord(str);				//clean the word up
+				if(str[0] != '\0')
+					listInsert(str);//Insert the word into the linked list	
+			}
+
+			printf("Parent, 271\n");
+		
+			/*wait_pid = waitpid(child_pid, NULL, WNOHANG);
+			
+			if(wait_pid == -1){
+				perror("waitpid");
+				exit(-1);
+			}*/
+			
+
+
+			
+			int k, l=0;
+			//while(l < n-1){
+			for(l = 0; l < n-1; l++){
+				close(fds[l][1]);
+				k = read_from_pipe(fds[l][0]);
+				close(fds[l][0]);
+			}
+		
+			fclose(INFILE);
+			writeOut(OUTFILE); //Write word count to OUTFILE.			
+						
+		}
+	
 		
 
 //END OF PARENT/CHILD FORKING AND PIPING CHANGES
@@ -344,12 +375,12 @@ int main(int argc, char** argv){
 		listInsert(str);//Insert the word into the linked list
 	}*/
 	printf("337, %d\n", getpid());
-	writeOut(OUTFILE); //Write word count to OUTFILE.
+	
 
 	gettimeofday(&t1, NULL);
 	writeTime(TIMEFILE,t0,t1); //Write 
 
-	fclose(INFILE);fclose(OUTFILE);fclose(TIMEFILE); //Close all files.
+	//fclose(INFILE);fclose(OUTFILE);fclose(TIMEFILE); //Close all files.
 	printf("344, %d\n", getpid());
 	return 0;	
 };

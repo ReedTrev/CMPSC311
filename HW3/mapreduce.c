@@ -28,9 +28,9 @@
 struct map_reduce *
 mr_create(map_fn map, reduce_fn reduce, int threads)
 {
-	//If we are able to allocate the memory, initialize new		
-	struct map_reduce *new = (struct map_reduce *)malloc(sizeof(struct map_reduce*));
-	if(new != NULL){
+	//If we are able to allocate the memory, initialize new	map_reduce struct ptr.	
+	struct map_reduce *new = (struct map_reduce *)malloc(sizeof(struct map_reduce));
+	if(new != 0){
 	
 		new->map = map;
 		new->reduce = reduce;
@@ -38,15 +38,18 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 
 		return new;
 	}
-	else
+	else{
+		printf("OOM in mr_create.\n");
+		free(new);
 		return NULL;
+	}
 }
 
 /* Destroys and cleans up an existing instance of the MapReduce framework */
 void
 mr_destroy(struct map_reduce *mr)
 {
-	free(mr);
+	free(mr);	
 }
 
 /* Begins a multithreaded MapReduce operation */
@@ -60,11 +63,11 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 
 	int i;
 	int id = 0;
-	int check1;
-	int check2;
+	int check1 = 0;
+	int check2 = 0;
 	for(i = 0; i < mr->threads; i++){
-		check1 = map(mr, INFILE, id, mr->threads);
-		check2 = reduce(mr, OUTFILE, mr->threads);
+		//check1 = map(mr, INFILE, id, mr->threads);
+		//check2 = reduce(mr, OUTFILE, mr->threads);
 		id++;
 		if(check1 != 0 || check2 != 0)
 			return -1;	

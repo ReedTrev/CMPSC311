@@ -65,10 +65,13 @@ struct map_reduce {
 	map_fn map;
 	reduce_fn reduce;
 	int threads;
-	int mapStatus[10];
+	int *mapStatus;
 	int reduceStatus;
-	pthread_t mappers[10];
+	int INFILE, OUTFILE;
+	pthread_t *mappers;
 	pthread_t reducer;
+	struct helperArgs *args;
+	struct helperArgs *args2;
 };
 
 /**

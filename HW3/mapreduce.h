@@ -68,10 +68,13 @@ struct map_reduce {
 	int *mapStatus;
 	int reduceStatus;
 	int INFILE, OUTFILE;
+	int id;
 	pthread_t *mappers;
 	pthread_t reducer;
 	struct helperArgs *args;
 	struct helperArgs *args2;
+	struct kvpair **buffer;
+	uint32_t *bufferSize;
 };
 
 /**
@@ -182,4 +185,4 @@ int mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv);
  */
 int mr_consume(struct map_reduce *mr, int id, struct kvpair *kv);
 
-#endif         	 	   	
+#endif   	 	   	

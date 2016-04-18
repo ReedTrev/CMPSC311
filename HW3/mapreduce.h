@@ -73,8 +73,10 @@ struct map_reduce {
 	pthread_t reducer;
 	struct helperArgs *args;
 	struct helperArgs *args2;
-	struct kvpair **buffer;
+	char **buffer;
 	uint32_t *bufferSize;
+	int *prod;
+	int *cons;
 };
 
 /**

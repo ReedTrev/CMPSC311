@@ -30,7 +30,7 @@ void *mapHelper(void *);
 void *reduceHelper(void *);
 
 static struct map_reduce *new;
-int numThreads;
+pthread_mutex_t lock;
 //Struct used to hold arguments of map/reduce functions
 //	for use by their respective helper functions.
 struct helperArgs{
@@ -50,8 +50,6 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 		new->map = map;			//Set map function
 		new->reduce = reduce;	//Set reduce function
 		new->threads = threads;	//Set number of threads
-
-		numThreads = threads;	//Set placeholder for number of threads
 
 		//Define space for mapper threads, size of number of threads.
 		new->mappers = malloc(threads*sizeof(pthread_t));	
@@ -92,6 +90,8 @@ mr_destroy(struct map_reduce *mr){
 	free(mr->mappers);
 	free(mr->args);
 	free(mr->args2);
+	free(mr->prod);
+	free(mr->cons);
 	printf("About to free buffers.\n");
 	for(int i = 0; i < mr->threads; i++){
 		free(mr->buffer[i]);
@@ -149,9 +149,8 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 int
 mr_finish(struct map_reduce *mr)
 {
-	int i = 0;
 	int check1, check2;
-	for(i = 0; i < mr->threads; i++){		//Wait for all threads to finish.
+	for(int i = 0; i < mr->threads; i++){		//Wait for all threads to finish.
 		printf("Joining mapper thread %d.\n", i);
 		check1 = pthread_join(mr->mappers[i], NULL);
 		if(check1 != 0)
@@ -165,7 +164,7 @@ mr_finish(struct map_reduce *mr)
 		return -1;
 	printf("Joined reducer thread\n");
 
-	for(i = 0; i < new->threads; i++){		//Check for errors in map and reduce functions.
+	for(int i = 0; i < new->threads; i++){		//Check for errors in map and reduce functions.
 		if(new->mapStatus[i] != 0 || new->reduceStatus != 0){
 			printf("We have an error.\n");
 			
@@ -187,30 +186,40 @@ mr_finish(struct map_reduce *mr)
 int
 mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 {
+	//Lock produce such that reduce thread will not try and consume while producing.
+	pthread_mutex_lock(&lock);
 	printf("Entered mr_produce\n");
-	int *prod = mr->prod;
-	char *word = malloc(sizeof(char));
-	char *num = malloc(sizeof(char));
-	word = (char *)kv->key;
-
-	printf("Word: %s\n",word);
-
-	//Insert key size into buffer[id].
-	mr->buffer[id][prod[id]] = kv->keysz;
-	prod[id]++;					//Increment produce ptr for buffer[id].
-	mr->bufferSize[id]++;		//Increment size of buffer[id].
-	//Insert key into buffer[id].
-	for(int i = 0; i < kv->keysz; i++){
-		mr->buffer[id][prod[id]] = word[i];	//Cast void* into string, read one char at a time.
-		mr->bufferSize[id]++;				//Increment size counter for buffer[id].
-		printf("%d: %c\n", i, word[i]);
-		prod[id]++;
+	int *prod = mr->prod;	
+	uint32_t keysz, valsz;
+	keysz = kv->keysz;
+	valsz = kv->valuesz;
+	//Step 1: Check for ample space.	
+	//If the size of the bytes to be written is larger than the total size of the
+	//	 buffer, then there is not enough space.
+	//Space to be written = size of key + size of value + (8 bytes for keysz+valuesz)
+	if((prod[id]+keysz+valsz+8) < MR_BUFFER_SIZE){
+		printf("Producer(%d) error: Not enough buffer space.\n", id);
+		return -1;
 	}
-	
-	printf("Buffer:\n%s\n", mr->buffer[id]);
-	printf("About to free word...\n");
-	free(word);
-
+	//Else, we have enough space.
+	//Step 2: Insert key size, key, value size, and value into buffer
+	//Key size will always be 4 bytes.
+	else{
+		printf("Produce(%d) has enough space, about to write kvpair.\n", id);
+		memmove(mr->buffer[id][prod[id]], keysz, 4));				//Move size of key into buffer, first.
+		prod[id] += 4;												//Increment produce location by 4 bytes.
+		memmove(mr->buffer[id][prod[id]], kv->key, kv->keysz);		//Move key into buffer, second.
+		prod[id] += sizeof(kv->key);								//Increment produce location by key size.
+		memmove(mr->buffer[id][prod[id]], valsz, 4);				//Move size of value into buffer, third.
+		prod[id] += 4;												//Increment produce location by 4 bytes.
+		memmove(mr->buffer[id][prod[id]], kv->value, kv->valuesz);	//Move value into buffer, fourth.
+		prod[id] += sizeof(kv->value);								//Increment produce location by value size.
+	}
+	//Apply changes to prod.
+	mr->prod = prod;		
+	//Return 1 on success.
+	printf("Produce(%d) success.\n", id);
+	pthread_mutex_unlock(&lock);
 	return 1;
 }
 

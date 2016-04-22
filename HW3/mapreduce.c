@@ -134,7 +134,7 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 
 		//BEGIN MAPPER[i] ARGUMENT STRUCT INITIALIZATION
 		mr->args[i].id = i;
-		mr->mapStatus[i] = -1;
+		mr->mapStatus[i] = -2;
 		mr->args[i].helpThreads = mr->threads;
 		mr->args[i].mr = mr;
 		mr->args[i].inpath = inpath;
@@ -148,7 +148,7 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 	}
 	printf("Exited mapper for-loop\n");	
 
-	mr->reduceStatus = -1;
+	mr->reduceStatus = -2;
 	mr->args2->mr = mr;
 	mr->args2->outpath = outpath;
 	printf("\t\tBefore Reduce: outpath addr. = %p\n", outpath);
@@ -174,7 +174,8 @@ mr_finish(struct map_reduce *mr)
 			return -1;
 	}
 	printf("Joined all mapper threads\n");
-
+	for(int i = 0; i < mr->threads; i++)
+		printf("mapStatus[%d] = %d\n", i, mr->mapStatus[i]);
 	printf("About to join reducer thread\n");
 	check2 = pthread_join(mr->reducer, NULL);
 	if(check2 != 0)
@@ -205,7 +206,7 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 {
 	//Lock produce such that reduce thread will not try and consume while producing.
 	pthread_mutex_lock(&mr->locks[id]);
-	printf("Entered mr_produce(%d)\n", id);
+	//printf("Entered mr_produce(%d)\n", id);
 	//int *prod = mr->prod;	
 	uint32_t keysz, valsz;
 	keysz = kv->keysz;
@@ -222,7 +223,7 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 	//Run when we have space.
 	//Step 2: Insert key size, key, value size, and value into buffer
 	//Key size will always be 4 bytes.	
-	printf("\tProduce(%d) has enough space, about to write kvpair to buffer.\n", id);
+	//printf("\tProduce(%d) has enough space, about to write kvpair to buffer.\n", id);
 	memmove(&mr->buffer[id][mr->prod[id]], &kv->keysz, 4);				//Move size of key into buffer, first.
 	mr->prod[id] += 4;												//Increment produce location by 4 bytes.
 
@@ -235,11 +236,7 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 	memmove(&mr->buffer[id][mr->prod[id]], kv->value, kv->valuesz);	//Move value into buffer, fourth.
 	mr->prod[id] += kv->valuesz;								//Increment produce location by value size.
 
-
-	//Apply changes to prod.
-	//mr->prod = prod;
-	//Return 1 on success.
-	printf("Produce(%d) success.\n", id);
+	//printf("Produce(%d) success.\n", id);
 	
 	//Signal to waiting threads blocked by notfull cond var (unblocks them). 
 	pthread_cond_signal(&mr->notempty[id]);
@@ -256,7 +253,7 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 {
 	pthread_mutex_lock(&mr->locks[id]);
 	
-	printf("Entered mr_consume(%d)\n", id);
+	//printf("Entered mr_consume(%d)\n", id);
 	//int *prod = mr->prod;	
 	uint32_t keysz, valsz;
 	keysz = kv->keysz;
@@ -266,37 +263,36 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 	//While there is nothing in our buffer AND the mapper[id]
 	//	is not finished, wait for a kvpair.
 	while(mr->prod[id] == 0){
-		printf("Consume mapStatus[%d] = %d\n", id, mr->mapStatus[id]);
+		//printf("Consume mapStatus[%d] = %d\n", id, mr->mapStatus[id]);
 		if(mr->mapStatus[id] == 0){
-			printf("Mapper(%d) finished, Consume(%d) returning 0.\n", id, id);
-			pthread_mutex_unlock(&mr->locks[id]);
+			//printf("Mapper(%d) finished, Consume(%d) returning 0.\n", id, id);
+			//pthread_mutex_unlock(&mr->locks[id]);
 			return 0;
 		}
 		pthread_cond_wait(&mr->notempty[id], &mr->locks[id]);
 	}
-
-	printf("Consume(%d) has something to pass, about to read kvpair from buffer.\n", id);
-	printf("i. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
+	
+	//printf("Consume(%d) has something to pass, about to read kvpair from buffer.\n", id);
+	//printf("i. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
 	memmove(&kv->keysz, &mr->buffer[id][cons], 4);			//Move size of key into kv, first.
 	mr->prod[id] -= 4;										//Decrement produce location by 4 bytes.
 	cons += 4;												//Increment consume location by 4 bytes.
-	printf("ii. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
+	//printf("ii. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
 
 	memmove(kv->key, &mr->buffer[id][cons], kv->keysz);			//Move key into kv, second.
 	mr->prod[id] -= kv->keysz;									//Decrement produce location by key size.
 	cons += kv->keysz;											//Increment consume location by key size.
-	printf("iii. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
+	//printf("iii. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
 
-	//memcpy(&kv->valuesz, mr->buffer[id][cons], 4);					//Copy value size.
 	memmove(&kv->valuesz, &mr->buffer[id][cons], 4);			//Move size of value into kv, third.
 	mr->prod[id] -= 4;										//Decrement produce location by 4 bytes.
 	cons += 4;												//Increment consume location by 4 bytes.
-	printf("iv. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
+	//printf("iv. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
 
 	memmove(kv->value, &mr->buffer[id][cons], kv->valuesz);		//Move value into kv, fourth.
 	mr->prod[id] -= kv->valuesz;									//Decrement produce location by value size.
 	cons += kv->valuesz;											//Increment consume location by value size.
-	printf("v. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
+	//printf("v. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
 
 	//Shift memory in buffer to the beginning
 	memmove(&mr->buffer[id][0], &mr->buffer[id][cons], (MR_BUFFER_SIZE - cons));
@@ -305,7 +301,7 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 	pthread_cond_signal(&mr->notfull[id]);
 	pthread_mutex_unlock(&mr->locks[id]);
 
-	printf("Consume(%d) success.\n", id);
+	//printf("Consume(%d) success.\n", id);
 		
 	return 1;
 }
@@ -320,8 +316,7 @@ void *mapHelper(void *arg)
 	printf("\tinpath addr. = %p, id = %d, arg threads = %d\n", argument->inpath, argument->id, argument->helpThreads);
 	
 	//Set the pass/fail status of each mapper ID with result of map function.
-	/*argument->mr->mapStatus[argument->id]*/int test = argument->mr->map(argument->mr, INFILE, argument->id, argument->helpThreads);
-	printf("Exiting mapHelper. mapStatus[%d]=%d\n", argument->id, test);
+	argument->mr->mapStatus[argument->id] = argument->mr->map(argument->mr, INFILE, argument->id, argument->helpThreads);	
 	close(INFILE);
 
 	return NULL;
@@ -336,16 +331,11 @@ void *reduceHelper(void *arg)
 	//mr = argument->mr;
 	//new->threads = argument->helpThreads;
 	int OUTFILE = open(argument->outpath, O_WRONLY | O_CREAT | O_TRUNC, S_IWGRP);
-	int redDone = 1;
 	printf("\toutpath addr. = %p, OUTFILE = %d, threads = %d\n", argument->outpath, OUTFILE, argument->helpThreads);
 
 	argument->mr->reduceStatus = argument->mr->reduce(argument->mr, OUTFILE, argument->helpThreads);
 	printf("Exiting reduceHelper\n");
 	close(OUTFILE);
 	//If we returned not 0, then we're out of kvpairs to map.
-	if(argument->mr->mapStatus[argument->id] != 0)
-		pthread_exit(&redDone);
-
-	pthread_exit(0);
-	//return NULL;
+	return NULL;
 }

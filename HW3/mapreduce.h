@@ -71,6 +71,8 @@ struct map_reduce {
 	int id;
 	pthread_t *mappers;
 	pthread_t reducer;
+	pthread_mutex_t *locks;
+	pthread_cond_t *notempty, *notfull;
 	struct helperArgs *args;
 	struct helperArgs *args2;
 	char **buffer;

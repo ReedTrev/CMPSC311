@@ -24,7 +24,7 @@
 
 
 /* Size of shared memory buffers */
-#define MR_BUFFER_SIZE 1024
+#define MR_BUFFER_SIZE 100
 
 void *mapHelper(void *);
 void *reduceHelper(void *);
@@ -326,7 +326,7 @@ void *reduceHelper(void *arg)
 	argument = (struct helperArgs*)arg;
 	//mr = argument->mr;
 	//new->threads = argument->helpThreads;
-	int OUTFILE = open(argument->outpath, O_WRONLY | O_CREAT | O_TRUNC, S_IWGRP);
+	int OUTFILE = open(argument->outpath, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 	//printf("\toutpath addr. = %p, OUTFILE = %d, threads = %d\n", argument->outpath, OUTFILE, argument->helpThreads);
 
 	argument->mr->reduceStatus = argument->mr->reduce(argument->mr, OUTFILE, argument->helpThreads);

@@ -89,7 +89,7 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 		return new;
 	}
 	else{						//Else, we're out of memory.
-		printf("OOM in mr_create.\n");
+		//printf("OOM in mr_create.\n");
 		free(new);
 		return NULL;
 	}
@@ -98,7 +98,7 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 /* Destroys and cleans up an existing instance of the MapReduce framework */
 void
 mr_destroy(struct map_reduce *mr){
-	printf("Entered destroy. mr->threads = %d\n", mr->threads);	
+	//printf("Entered destroy. mr->threads = %d\n", mr->threads);	
 	free(mr->mapStatus);
 	free(mr->mappers);
 	free(mr->args);
@@ -108,10 +108,10 @@ mr_destroy(struct map_reduce *mr){
 	free(mr->locks);
 	free(mr->notempty);
 	free(mr->notfull);
-	printf("About to free buffers.\n");
+	//printf("About to free buffers.\n");
 	for(int i = 0; i < mr->threads; i++){
 		free(mr->buffer[i]);
-		printf("Freed buffer[%d]\n",i);
+		//printf("Freed buffer[%d]\n",i);
 	}
 	free(mr->buffer);
 	free(mr->bufferSize);
@@ -128,9 +128,9 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 		return -1;
 	close(mr->INFILE);
 	
-	printf("Number of threads = %d\n", mr->threads);
+	//printf("Number of threads = %d\n", mr->threads);
 	for(int i = 0; i < mr->threads; i++){
-		printf("Entered mapper for loop for %d time.\n", i);
+		//printf("Entered mapper for loop for %d time.\n", i);
 
 		//BEGIN MAPPER[i] ARGUMENT STRUCT INITIALIZATION
 		mr->args[i].id = i;
@@ -139,26 +139,26 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 		mr->args[i].mr = mr;
 		mr->args[i].inpath = inpath;
 		//END MAPPER[i] ARGUMENT STRUCT INITIALIZATION
-		printf("\t\tBefore create, num threads = %d, inpath addr. = %p\n", mr->threads, inpath);
+		//printf("\t\tBefore create, num threads = %d, inpath addr. = %p\n", mr->threads, inpath);
 		if(pthread_create(&mr->mappers[i], NULL, &mapHelper,(void *)&mr->args[i])){
-			printf("Error creating mapper thread %d.\n", i);
+			//printf("Error creating mapper thread %d.\n", i);
 			return -1;
 		}
-		printf("mapStatus[%d] after map return = %d\n", i, mr->mapStatus[i]);
+		//printf("mapStatus[%d] after map return = %d\n", i, mr->mapStatus[i]);
 	}
-	printf("Exited mapper for-loop\n");	
+	//printf("Exited mapper for-loop\n");	
 
 	mr->reduceStatus = -2;
 	mr->args2->mr = mr;
 	mr->args2->outpath = outpath;
-	printf("\t\tBefore Reduce: outpath addr. = %p\n", outpath);
+	//printf("\t\tBefore Reduce: outpath addr. = %p\n", outpath);
 	mr->args2->helpThreads = mr->threads;
 	if(pthread_create(&mr->reducer, NULL, &reduceHelper, (void *)mr->args2)){
-		printf("Error creating reducer thread.\n");
+		//printf("Error creating reducer thread.\n");
 		return -1;
 	}
 
-	printf("mr_start returning 0.\n");
+	//printf("mr_start returning 0.\n");
 	return 0;
 }
 
@@ -168,29 +168,25 @@ mr_finish(struct map_reduce *mr)
 {
 	int check1, check2;
 	for(int i = 0; i < mr->threads; i++){		//Wait for all threads to finish.
-		printf("Joining mapper thread %d.\n", i);
-		check1 = pthread_join(mr->mappers[i], NULL);
-		if(check1 != 0)
+		//printf("Joining mapper thread %d.\n", i);
+		if(pthread_join(mr->mappers[i], NULL))
 			return -1;
 	}
-	printf("Joined all mapper threads\n");
-	for(int i = 0; i < mr->threads; i++)
-		printf("mapStatus[%d] = %d\n", i, mr->mapStatus[i]);
-	printf("About to join reducer thread\n");
-	check2 = pthread_join(mr->reducer, NULL);
-	if(check2 != 0)
+	//printf("Joined all mapper threads\n");	
+	//printf("About to join reducer thread\n");
+	if(pthread_join(mr->reducer, NULL))
 		return -1;
-	printf("Joined reducer thread\n");
+	//printf("Joined reducer thread\n");
 
 	for(int i = 0; i < new->threads; i++){		//Check for errors in map and reduce functions.
 		if(new->mapStatus[i] != 0 || new->reduceStatus != 0){
-			printf("We have an error.\n");
+			//printf("We have an error.\n");
 			
 			return -1;
 		}
 	}
  	
-	printf("Returning 0\n");
+	//printf("Returning 0\n");
 	return 0;
 }
 
@@ -308,12 +304,12 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 
 void *mapHelper(void *arg)
 {
-	printf("Entered mapHelper\n");	
+	//printf("Entered mapHelper\n");	
 	struct helperArgs *argument;
 	argument = (struct helperArgs*)arg;	
 	int INFILE = open(argument->inpath, O_RDONLY);
 
-	printf("\tinpath addr. = %p, id = %d, arg threads = %d\n", argument->inpath, argument->id, argument->helpThreads);
+	//printf("\tinpath addr. = %p, id = %d, arg threads = %d\n", argument->inpath, argument->id, argument->helpThreads);
 	
 	//Set the pass/fail status of each mapper ID with result of map function.
 	argument->mr->mapStatus[argument->id] = argument->mr->map(argument->mr, INFILE, argument->id, argument->helpThreads);	
@@ -324,17 +320,17 @@ void *mapHelper(void *arg)
 
 void *reduceHelper(void *arg)
 {
-	printf("Entered reduceHelper\n");
+	//printf("Entered reduceHelper\n");
 	struct helperArgs *argument;
 
 	argument = (struct helperArgs*)arg;
 	//mr = argument->mr;
 	//new->threads = argument->helpThreads;
 	int OUTFILE = open(argument->outpath, O_WRONLY | O_CREAT | O_TRUNC, S_IWGRP);
-	printf("\toutpath addr. = %p, OUTFILE = %d, threads = %d\n", argument->outpath, OUTFILE, argument->helpThreads);
+	//printf("\toutpath addr. = %p, OUTFILE = %d, threads = %d\n", argument->outpath, OUTFILE, argument->helpThreads);
 
 	argument->mr->reduceStatus = argument->mr->reduce(argument->mr, OUTFILE, argument->helpThreads);
-	printf("Exiting reduceHelper\n");
+	//printf("Exiting reduceHelper\n");
 	close(OUTFILE);
 	//If we returned not 0, then we're out of kvpairs to map.
 	return NULL;

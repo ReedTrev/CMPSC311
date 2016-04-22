@@ -24,7 +24,7 @@
 
 
 /* Size of shared memory buffers */
-#define MR_BUFFER_SIZE 100
+#define MR_BUFFER_SIZE 10240
 
 void *mapHelper(void *);
 void *reduceHelper(void *);
@@ -314,7 +314,8 @@ void *mapHelper(void *arg)
 	//Set the pass/fail status of each mapper ID with result of map function.
 	argument->mr->mapStatus[argument->id] = argument->mr->map(argument->mr, INFILE, argument->id, argument->helpThreads);	
 	close(INFILE);
-
+	//Signal to the consumer that mapper[id] has finished.
+	pthread_cond_signal(&argument->mr->notempty[argument->id]);
 	return NULL;
 }	
 

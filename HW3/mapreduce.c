@@ -24,7 +24,7 @@
 
 
 /* Size of shared memory buffers */
-#define MR_BUFFER_SIZE 10240
+#define MR_BUFFER_SIZE 100
 
 void *mapHelper(void *);
 void *reduceHelper(void *);
@@ -63,11 +63,10 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 
 		//Create locks and then initialize them
 		new->locks = malloc(threads*sizeof(pthread_mutex_t));		
-		for(int i = 0; i < threads; i++)
-			pthread_mutex_init(&new->locks[i], NULL);
 
 		//Initialize conditional variables.
-		for(int i = 0; i < threads; i++){
+		for(int i = 0; i < threads; i++){	
+			pthread_mutex_init(&new->locks[i], NULL);
 			pthread_cond_init(&new->notempty[i], NULL);
 			pthread_cond_init(&new->notfull[i], NULL);
 		}
@@ -76,12 +75,12 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 		new->buffer = malloc(threads*sizeof(char*));
 		
 		//Initialize each of the string buffers from above to size of a char.
-		for(int i = 0; i < threads; i++){
-			new->buffer[i] = malloc(MR_BUFFER_SIZE*sizeof(char));
+		for(int j = 0; j < threads; j++){
+			new->buffer[j] = malloc(MR_BUFFER_SIZE*sizeof(char));
 
 			//Initialize the counts of each produce and consume pointer to 0.
-			new->prod[i] = 0;
-			new->cons[i] = 0;
+			new->prod[j] = 0;
+			new->cons[j] = 0;
 		}
 
 		//Array of uint32s to keep track of each buffer's size
@@ -220,19 +219,17 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 	//Step 2: Insert key size, key, value size, and value into buffer
 	//Key size will always be 4 bytes.	
 	//printf("\tProduce(%d) has enough space, about to write kvpair to buffer.\n", id);
-	memmove(&mr->buffer[id][mr->prod[id]], &kv->keysz, 4);				//Move size of key into buffer, first.
-	mr->prod[id] += 4;												//Increment produce location by 4 bytes.
+	memmove(&mr->buffer[id][mr->prod[id]], &kv->keysz, sizeof(uint32_t));	//Move size of key into buffer, first.
+	mr->prod[id] += sizeof(uint32_t);										//Increment produce location by 4 bytes.
 
-	memmove(&mr->buffer[id][mr->prod[id]], kv->key, kv->keysz);		//Move key into buffer, second.
-	mr->prod[id] += kv->keysz;								//Increment produce location by key size.
+	memmove(&mr->buffer[id][mr->prod[id]], kv->key, kv->keysz);				//Move key into buffer, second.
+	mr->prod[id] += kv->keysz;												//Increment produce location by key size.
 
-	memmove(&mr->buffer[id][mr->prod[id]], &kv->valuesz, 4);				//Move size of value into buffer, third.
-	mr->prod[id] += 4;												//Increment produce location by 4 bytes.
+	memmove(&mr->buffer[id][mr->prod[id]], &kv->valuesz, sizeof(uint32_t));	//Move size of value into buffer, third.
+	mr->prod[id] += sizeof(uint32_t);										//Increment produce location by 4 bytes.
 
-	memmove(&mr->buffer[id][mr->prod[id]], kv->value, kv->valuesz);	//Move value into buffer, fourth.
-	mr->prod[id] += kv->valuesz;								//Increment produce location by value size.
-
-	//printf("Produce(%d) success.\n", id);
+	memmove(&mr->buffer[id][mr->prod[id]], kv->value, kv->valuesz);			//Move value into buffer, fourth.
+	mr->prod[id] += kv->valuesz;											//Increment produce location by value size.
 	
 	//Signal to waiting threads blocked by notfull cond var (unblocks them). 
 	pthread_cond_signal(&mr->notempty[id]);
@@ -270,9 +267,9 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 	
 	//printf("Consume(%d) has something to pass, about to read kvpair from buffer.\n", id);
 	//printf("i. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
-	memmove(&kv->keysz, &mr->buffer[id][cons], 4);			//Move size of key into kv, first.
-	mr->prod[id] -= 4;										//Decrement produce location by 4 bytes.
-	cons += 4;												//Increment consume location by 4 bytes.
+	memmove(&kv->keysz, &mr->buffer[id][cons], sizeof(uint32_t));			//Move size of key into kv, first.
+	mr->prod[id] -= sizeof(uint32_t);										//Decrement produce location by 4 bytes.
+	cons += sizeof(uint32_t);												//Increment consume location by 4 bytes.
 	//printf("ii. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
 
 	memmove(kv->key, &mr->buffer[id][cons], kv->keysz);			//Move key into kv, second.
@@ -280,9 +277,9 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 	cons += kv->keysz;											//Increment consume location by key size.
 	//printf("iii. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
 
-	memmove(&kv->valuesz, &mr->buffer[id][cons], 4);			//Move size of value into kv, third.
-	mr->prod[id] -= 4;										//Decrement produce location by 4 bytes.
-	cons += 4;												//Increment consume location by 4 bytes.
+	memmove(&kv->valuesz, &mr->buffer[id][cons], sizeof(uint32_t));			//Move size of value into kv, third.
+	mr->prod[id] -= sizeof(uint32_t);										//Decrement produce location by 4 bytes.
+	cons += sizeof(uint32_t);												//Increment consume location by 4 bytes.
 	//printf("iv. prod[%d]=%d, cons=%d\n", id, mr->prod[id], cons);
 
 	memmove(kv->value, &mr->buffer[id][cons], kv->valuesz);		//Move value into kv, fourth.

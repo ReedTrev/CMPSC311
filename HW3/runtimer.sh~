@@ -1,0 +1,19 @@
+a=0
+
+while [ $a -lt  5 ]; do
+	./mr-wordc PangurBan.txt PBout_1_1k.txt PBtime_1_1k.txt 1
+	./mr-wordc PangurBan.txt PBout_2_1k.txt PBtime_2_1k.txt 2
+	./mr-wordc PangurBan.txt PBout_4_1k.txt PBtime_4_1k.txt 4
+	./mr-wordc PangurBan.txt PBout_8_1k.txt PBtime_8_1k.txt 8
+
+	./mr-wordc Hamlet.txt HamOut_1_1k.txt HamTime_1_1k.txt 1
+	./mr-wordc Hamlet.txt HamOut_2_1k.txt HamTime_2_1k.txt 2
+	./mr-wordc Hamlet.txt HamOut_4_1k.txt HamTime_4_1k.txt 4
+	./mr-wordc Hamlet.txt HamOut_8_1k.txt HamTime_8_1k.txt 8
+
+	./mr-wordc Arabian.txt ArabOut_1_1k.txt ArabTime_1_1k.txt 1
+	./mr-wordc Arabian.txt ArabOut_2_1k.txt ArabTime_2_1k.txt 2
+	./mr-wordc Arabian.txt ArabOut_4_1k.txt ArabTime_4_1k.txt 4
+	./mr-wordc Arabian.txt ArabOut_8_1k.txt ArabTime_8_1k.txt 8
+	let a=a+1
+done

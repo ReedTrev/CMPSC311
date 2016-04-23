@@ -1,6 +1,6 @@
 a=0
 
-while [ $a -lt  3 ]; do
+while [ $a -lt  5 ]; do
 	./mr-wordc PangurBan.txt PBout_1_100.txt PBtime_1_100.txt 1
 	./mr-wordc PangurBan.txt PBout_2_100.txt PBtime_2_100.txt 2
 	./mr-wordc PangurBan.txt PBout_4_100.txt PBtime_4_100.txt 4

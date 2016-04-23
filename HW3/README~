@@ -94,16 +94,16 @@ Buffer Size: 10kB
 	Pangur Ban
 		1 Thread
 			SD: 0.000076
-			Avg: 0.000557
+			Avg: 
 		2 Threads
 			SD: 0.000049
-			Avg: 0.000608
+			Avg: 
 		4 Threads
-			SD: 0.000152
-			Avg: 0.000670
+			SD:0.000152
+			Avg: 
 		8 Threads
 			SD: 0.000070
-			Avg: 0.000678
+			Avg:
 
 	Hamlet
 		1 Thread

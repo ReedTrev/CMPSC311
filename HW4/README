@@ -1,8 +1,9 @@
 == Team members ==
-(put everyone's name here)
-
-== Performance evaluation ==
-
+Trevor Reed & Alison Pastore
 
 == Sources consulted ==
-(please cite here as well as in comments by the relevant code)
+server.c and client.c sample files given in the "Demo files for Lectures 34, 35" folder on ANGEL.
+	-Used for mr_start socket initialization code for the client and server parts.
+
+Linux How-To's: Sockets Tutorial (http://www.linuxhowtos.org/C_C++/socket.htm)
+	-Further principles on setting up and utlizing sockets.

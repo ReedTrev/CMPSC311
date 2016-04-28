@@ -66,6 +66,7 @@ struct map_reduce {
 	int *clientSockets;
 	int *serverSockets;
 	int listSocket;
+	struct sockaddr_in *conn;
 
 	int *mapStatus;
 	int reduceStatus;
@@ -204,4 +205,4 @@ int mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv);
  */
 int mr_consume(struct map_reduce *mr, int id, struct kvpair *kv);
 
-#endif
+#endif       	  	  			

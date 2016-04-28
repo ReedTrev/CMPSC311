@@ -66,22 +66,12 @@ struct map_reduce {
 	int *clientSockets;
 	int *serverSockets;
 	int listSocket;
-	struct sockaddr_in *conn;
-
 	int *mapStatus;
 	int reduceStatus;
-	int INFILE, OUTFILE;
-	int id;
 	pthread_t *mappers;
 	pthread_t reducer;
-	pthread_mutex_t *locks;
-	pthread_cond_t *notempty, *notfull;
 	struct helperArgs *args;
 	struct helperArgs *args2;
-	char **buffer;
-	uint32_t *bufferSize;
-	int *prod;
-	int *cons;
 };
 
 /**

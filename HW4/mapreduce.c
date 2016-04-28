@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <pthread.h>
 #include "mapreduce.h"
 
@@ -46,7 +47,7 @@ mr_create(map_fn map, reduce_fn reduce, int nmaps)
 {
 	new = (struct map_reduce *)malloc(sizeof(struct map_reduce));
 	if(new != 0){
-		new->conn = (struct sockaddr_in *)malloc(sizeof(struct sockaddr_in));
+		//new->conn = (struct sockaddr_in *)malloc(sizeof(struct sockaddr_in));
 		new->args = malloc(nmaps*sizeof(struct helperArgs));
 		new->args2 = malloc(sizeof(struct helperArgs));
 		new->nmaps = nmaps;
@@ -90,7 +91,7 @@ void
 mr_destroy(struct map_reduce *mr)
 {
 	//General destroy
-	free(mr->conn);
+	//free(mr->conn);
 	free(mr->args);
 	free(mr->args2);
 
@@ -122,14 +123,20 @@ mr_destroy(struct map_reduce *mr)
 int
 mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
 {
-	bcopy(ip, (char *)&mr->conn->sin_addr.s_addr, sizeof(ip));
-
-	mr->conn->sin_family = AF_INET;
-	mr->conn->sin_port = htons(port);
-	//mr->conn->sin_addr = ip;
-
 	//Client
 	if(mr->reduce == NULL){
+
+		struct hostent *server;
+		server = gethostbyname(ip); 
+
+		struct sockaddr_in client_addr;
+		bzero((char*) &client_addr, sizeof(client_addr));
+		client_addr.sin_family = AF_INET;
+
+		bcopy((char*) server->h_addr, (char*)&client_addr.sin_addr.s_addr, server->h_length);
+		
+		client_addr.sin_port = htons(port);
+		
 
 		for(int i = 0; i < mr->nmaps; i++){
 			
@@ -139,8 +146,8 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
 			mr->args[i].mr = mr;
 			mr->args[i].path = path;
 
-			mr->clientSockets[i] = socket(AF_INET, SOCK_STREAM, 0);	//Create client socket.
-			if(connect(mr->clientSockets[i], (struct sockaddr *)&mr->conn, sizeof(mr->conn) < 0)) //Wait for Connection of socket to IP:port
+			mr->clientSockets[i] = socket(AF_INET, SOCK_STREAM, 0);	//Create client socket
+			if(connect(mr->clientSockets[i], (struct sockaddr*) &client_addr, sizeof(client_addr)) < 0) //Wait for Connection of socket to IP:port
 				perror("ERROR: Socket did not connect.");
 
 			//Connection established, create thread.
@@ -162,10 +169,23 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
 		mr->args2->mr = mr;
 		mr->args2->path = path;
 
-		mr->listSocket = socket(AF_INET, SOCK_STREAM, 0);	//Create server listen socket.
+		struct hostent *server;
+		server = gethostbyname(ip); 
 
-		if(bind(mr->listSocket, (struct sockaddr *)&mr->conn, sizeof(mr->conn) < 0)) //Bind listen socket to IP:port
+		mr->listSocket = socket(AF_INET, SOCK_STREAM, 0);	//Create server listen socket.
+		
+		struct sockaddr_in serv_addr;
+		bzero((char*) &serv_addr, sizeof(serv_addr));
+		serv_addr.sin_family = AF_INET;
+
+		bcopy((char*) server->h_addr, (char*)&serv_addr.sin_addr.s_addr, server->h_length);
+		
+		serv_addr.sin_port = htons(port);
+		
+		if(bind(mr->listSocket, (struct sockaddr*) &serv_addr, sizeof(serv_addr)) < 0) //Bind listen socket to IP:port
 			perror("ERROR: Binding failed.");
+		if(listen(mr->listSocket, mr->nmaps) < 0)
+			perror("ERROR: Listening failed."); 
 
 		if(pthread_create(&mr->reducer, NULL, &reduceHelper,(void *)mr->args2)){	//Create server thread.
 			//printf("Error creating mapper thread %d.\n", i);
@@ -220,10 +240,10 @@ int
 mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 {
 	char *buff = malloc(MR_BUFFER_SIZE*sizeof(char));	//Create temporary buffer
-	int prod = 0, size = 0;
+	int prod = 0;
 	char *ping = malloc(sizeof(char));
 
-	printf("Key size in produce = %d", kv->keysz);
+	//printf("Key size in produce = %d\n", kv->keysz);
 
 	memmove(&buff[prod], &kv->keysz, sizeof(uint32_t));				//Move key into buffer, second.
 	prod += sizeof(uint32_t);
@@ -236,8 +256,8 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 
 	memmove(&buff[prod], kv->value, kv->valuesz);			//Move value into buffer, fourth.
 	prod += kv->valuesz;
-
-	write(mr->clientSockets[id], &buff, prod);				//Write to server through socket connection.
+		
+	write(mr->clientSockets[id], &buff, prod);			//Write to server through socket connection.
 	read(mr->clientSockets[id], &ping, 1);					//Wait for server to finish reading.
 
 	free(buff);
@@ -254,7 +274,7 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 	int cons = 0, size = 0;
 	char *ping = malloc(sizeof(char));
 
-	if(read(mr->serverSockets[id], &buff, MR_BUFFER_SIZE) == 0){
+	if(read(mr->serverSockets[id], &buff, 12) == 0){
 		free(buff);
 		free(ping);		
 		return 0;			//Read from socket.
@@ -263,16 +283,18 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 	memmove(&kv->keysz, &buff[cons], sizeof(uint32_t));
 	cons += sizeof(uint32_t);
 
-	memmove(kv->key, &buff[cons], kv->keysz);						//Move key into buffer, second.
-	cons += kv->keysz;
+	printf("Key size = %d\n", kv->keysz);
 
-	memmove(&kv->valuesz, &buff[cons], sizeof(uint32_t));			//Move value into buffer, fourth.
+	memmove(kv->key, &buff[cons], kv->keysz);			//Move key into buffer, second.
+	cons += kv->keysz;
+	printf("Key = %s\n", (char *)kv->key);
+	memmove(&kv->valuesz, &buff[cons], sizeof(uint32_t));		//Move value into buffer, fourth.
 	cons += sizeof(uint32_t);
 
 	memmove(kv->value, &buff[cons], kv->valuesz);			//Move value into buffer, fourth.
 	cons += kv->valuesz;
 
-	write(mr->serverSockets[id], &ping, 1);					//Write to server through socket connection.
+	write(mr->serverSockets[id], &ping, 1);				//Write to server through socket connection.
 
 	free(buff);
 	free(ping);
@@ -303,13 +325,15 @@ void *reduceHelper(void *arg)
 	struct helperArgs *ar;
 	ar = (struct helperArgs*)arg;
 	int OUTFILE = open(ar->path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-	socklen_t clilen = sizeof(ar->mr->conn);
+	//socklen_t clilen = sizeof(ar->mr->conn);
 	//printf("\toutpath addr. = %p, OUTFILE = %d, threads = %d\n", ar->outpath, OUTFILE, ar->helpThreads);
 
 	//Wait for all connections.
 	for(int i = 0; i < ar->mr->nmaps; i++){
 		//Accept connections
-		ar->mr->serverSockets[i] = accept(ar->mr->listSocket, (struct sockaddr *)&ar->mr->conn, &clilen);
+		ar->mr->serverSockets[i] = accept(ar->mr->listSocket, (struct sockaddr *)NULL, NULL);
+		if(ar->mr->serverSockets[i] < 0)
+			perror("ERROR: Server socket not accepted.");
 	}
 
 	ar->mr->reduceStatus = ar->mr->reduce(ar->mr, OUTFILE, ar->helpThreads);
